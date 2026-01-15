@@ -1,0 +1,9 @@
+{
+  "name": "AHRN Platform",
+  "description": "Predictive Home Reliability Network with AI-driven failure forecasting and forensic evidence capture.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
