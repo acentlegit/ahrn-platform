@@ -25,6 +25,9 @@ export interface Device {
     forecast: string;
     type: 'HVAC' | 'Plumbing' | 'Electrical' | 'Appliances';
     zone: string;
+    manufacturer?: string;
+    modelNumber?: string;
+    serialNumber?: string;
     telemetry: {
         temp: number;
         vibration: 'Normal' | 'Erratic' | 'High';
@@ -55,4 +58,14 @@ export interface Job {
     evidenceHash?: string;
     sealedAt?: string;
     dismissedByTech?: boolean;
+}
+
+export interface User {
+    _id?: string;
+    email: string;
+    role: 'HOMEOWNER' | 'TECHNICIAN' | 'ADMIN';
+    name: string;
+    address?: string;
+    skills?: string[];
+    certificationId?: string;
 }

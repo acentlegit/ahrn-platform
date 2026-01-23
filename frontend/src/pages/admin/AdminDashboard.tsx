@@ -26,7 +26,9 @@ import { useState } from 'react';
 import { NotificationCenter } from '../../components/common/NotificationCenter';
 import { SettingsCenter } from '../../components/common/SettingsCenter';
 import { AuditModal } from '../../components/common/AuditModal';
-import { Job } from '../../types';
+import { Job, User as UserType } from '../../types';
+import { ahrnApi } from '../../api';
+import { Users, Shield, Trash2, Mail as MailIcon } from 'lucide-react';
 
 const GLASS_STYLE = "bg-white/70 backdrop-blur-2xl border border-white shadow-premium rounded-[3.5rem]";
 
@@ -36,6 +38,30 @@ export const AdminDashboard = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'audit' | 'users'>('audit');
+    const [users, setUsers] = useState<UserType[]>([]);
+
+    React.useEffect(() => {
+        if (activeTab === 'users') {
+            ahrnApi.getUsers().then(setUsers);
+        }
+    }, [activeTab]);
+
+    const handleDeleteUser = async (id: string) => {
+        if (window.confirm('Are you sure you want to delete this user?')) {
+            const res = await ahrnApi.deleteUser(id);
+            if (res.success) {
+                setUsers(users.filter(u => u._id !== id));
+            }
+        }
+    };
+
+    const handlePromoteUser = async (id: string, role: string) => {
+        const res = await ahrnApi.updateUser(id, { role });
+        if (res.success) {
+            setUsers(users.map(u => u._id === id ? { ...u, role: role as any } : u));
+        }
+    };
 
     const filteredJobs = useMemo(() => {
         return jobs
@@ -203,22 +229,40 @@ export const AdminDashboard = () => {
 
             {/* Management Utilities */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="flex gap-4">
-                    <button className="flex items-center gap-2 px-6 py-3 bg-white border border-black/5 rounded-2xl text-[10px] font-bold text-[#C5A059] hover:bg-slate-50 transition-all shadow-sm">
-                        <Filter size={14} /> Filter Ledger
+                <div className="flex gap-4 bg-white/50 p-1.5 rounded-2xl border border-black/5">
+                    <button
+                        onClick={() => setActiveTab('audit')}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-bold transition-all ${activeTab === 'audit' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}
+                    >
+                        Audit Ledger
                     </button>
                     <button
-                        onClick={handleExport}
-                        className="flex items-center gap-2 px-6 py-3 bg-white border border-black/5 rounded-2xl text-[10px] font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
+                        onClick={() => setActiveTab('users')}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-bold transition-all ${activeTab === 'users' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}
                     >
-                        <Download size={14} /> Export Audit
+                        User Management
                     </button>
                 </div>
+
+                {activeTab === 'audit' && (
+                    <div className="flex gap-4">
+                        <button className="flex items-center gap-2 px-6 py-3 bg-white border border-black/5 rounded-2xl text-[10px] font-bold text-[#C5A059] hover:bg-slate-50 transition-all shadow-sm">
+                            <Filter size={14} /> Filter Ledger
+                        </button>
+                        <button
+                            onClick={handleExport}
+                            className="flex items-center gap-2 px-6 py-3 bg-white border border-black/5 rounded-2xl text-[10px] font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-sm"
+                        >
+                            <Download size={14} /> Export Audit
+                        </button>
+                    </div>
+                )}
+
                 <div className="relative group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#C5A059] transition-colors" size={16} />
                     <input
                         type="text"
-                        placeholder="Audit by hash, node, or Identifier..."
+                        placeholder={activeTab === 'audit' ? "Audit by hash, node, or Identifier..." : "Search users by name or email..."}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="bg-white border border-black/5 rounded-2xl pl-12 pr-6 py-4 text-xs w-96 focus:border-[#C5A059] outline-none transition-all shadow-sm text-slate-900 placeholder:text-slate-300"
@@ -226,31 +270,34 @@ export const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* Governance Ledger */}
+            {/* Governance Ledger / User Management */}
             <section className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-2xl bg-[#C5A059]/10 flex items-center justify-center text-[#C5A059] border border-[#C5A059]/20">
-                            <Database size={20} />
+                            {activeTab === 'audit' ? <Database size={20} /> : <Users size={20} />}
                         </div>
-                        <h3 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">Forensic Evidence Ledger</h3>
+                        <h3 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">
+                            {activeTab === 'audit' ? 'Forensic Evidence Ledger' : 'Identity Governance'}
+                        </h3>
                     </div>
                 </div>
 
-                <div className={`${GLASS_STYLE} rounded-[3rem] overflow-hidden border-white`}>
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50/80 border-b border-black/5">
-                            <tr>
-                                <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Event Signature</th>
-                                <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Subject Node</th>
-                                <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Validation Point</th>
-                                <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Network Status</th>
-                                <th className="px-10 py-6 text-[10px] font-bold text-slate-400 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-black/5">
-                            {(() => {
-                                return filteredJobs.map((row, i) => (
+                <div className={`${GLASS_STYLE} rounded-[3rem] overflow-hidden border-white whitespace-nowrap`}>
+                    {activeTab === 'audit' ? (
+                        <table className="w-full text-left border-collapse">
+                            {/* ... existing table head ... */}
+                            <thead className="bg-slate-50/80 border-b border-black/5">
+                                <tr>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Event Signature</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Subject Node</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Validation Point</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Network Status</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/5">
+                                {filteredJobs.map((row, i) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-all group/row">
                                         <td className="px-10 py-8">
                                             <div className="flex items-center gap-4">
@@ -286,21 +333,102 @@ export const AdminDashboard = () => {
                                             </div>
                                         </td>
                                         <td className="px-10 py-8 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm('Confirm payout to technician?')) {
+                                                            await ahrnApi.resolveDispute(row.id, 'PAYOUT');
+                                                            alert('Payout Authorized');
+                                                        }
+                                                    }}
+                                                    className="px-3 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[9px] font-bold border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all"
+                                                >
+                                                    Auth Payout
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm('Confirm refund to homeowner?')) {
+                                                            await ahrnApi.resolveDispute(row.id, 'REFUND');
+                                                            alert('Refund Processed');
+                                                        }
+                                                    }}
+                                                    className="px-3 py-2 bg-rose-50 text-rose-600 rounded-xl text-[9px] font-bold border border-rose-100 hover:bg-rose-500 hover:text-white transition-all"
+                                                >
+                                                    Refund
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedJob(row);
+                                                        setIsAuditModalOpen(true);
+                                                    }}
+                                                    className="inline-flex items-center gap-2 text-[#C5A059] hover:text-white transition-all px-4 py-2 hover:bg-[#C5A059] hover:text-white rounded-xl border border-[#C5A059]/30 group/btn font-bold text-[9px] bg-white shadow-sm"
+                                                >
+                                                    Audit <ArrowUpRight size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50/80 border-b border-black/5">
+                                <tr>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Identity</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Network Role</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Status</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400 text-right">Oversight Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/5">
+                                {users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())).map((u, i) => (
+                                    <tr key={u._id} className="hover:bg-slate-50 transition-all group/row">
+                                        <td className="px-10 py-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-[#C5A059]/10 flex items-center justify-center text-[#C5A059] font-bold shadow-inner">
+                                                    {u.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <span className="text-sm font-bold text-slate-900 block">{u.name}</span>
+                                                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                        <MailIcon size={10} /> {u.email}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-10 py-8">
+                                            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[9px] font-bold ${u.role === 'ADMIN' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                u.role === 'TECHNICIAN' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                    'bg-[#C5A059]/10 text-[#C5A059] border-[#C5A059]/20'
+                                                }`}>
+                                                <Shield size={10} /> {u.role}
+                                            </div>
+                                        </td>
+                                        <td className="px-10 py-8">
+                                            <div className="text-[10px] text-slate-900 font-bold block">Active Node</div>
+                                        </td>
+                                        <td className="px-10 py-8 text-right space-x-2">
+                                            {u.role !== 'ADMIN' && (
+                                                <button
+                                                    onClick={() => handlePromoteUser(u._id!, 'ADMIN')}
+                                                    className="inline-flex items-center gap-2 text-indigo-500 hover:text-white transition-all px-4 py-2 hover:bg-indigo-500 rounded-xl border border-indigo-200 group/btn font-bold text-[9px] bg-white shadow-sm"
+                                                >
+                                                    Promote to Admin
+                                                </button>
+                                            )}
                                             <button
-                                                onClick={() => {
-                                                    setSelectedJob(row);
-                                                    setIsAuditModalOpen(true);
-                                                }}
-                                                className="inline-flex items-center gap-2 text-[#C5A059] hover:text-white transition-all px-4 py-2 hover:bg-[#C5A059] hover:text-white rounded-xl border border-[#C5A059]/30 group/btn font-bold text-[9px] bg-white shadow-sm"
+                                                onClick={() => handleDeleteUser(u._id!)}
+                                                className="inline-flex items-center gap-2 text-rose-500 hover:text-white transition-all px-4 py-2 hover:bg-rose-500 rounded-xl border border-rose-200 group/btn font-bold text-[9px] bg-white shadow-sm"
                                             >
-                                                Audit Ledger <ArrowUpRight size={14} />
+                                                <Trash2 size={14} /> Decommission
                                             </button>
                                         </td>
                                     </tr>
-                                ));
-                            })()}
-                        </tbody>
-                    </table>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </section>
 

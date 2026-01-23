@@ -53,10 +53,12 @@ const seedData = async () => {
 };
 
 import { startSimulation } from './simulation';
+import { seedAdminUser } from './config/userSeeder';
 
 // Start Server
 connectDB().then(() => {
     seedData();
+    seedAdminUser();
     startSimulation();
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);

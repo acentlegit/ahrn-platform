@@ -30,6 +30,7 @@ import { NotificationCenter } from '../../components/common/NotificationCenter';
 import { SettingsCenter } from '../../components/common/SettingsCenter';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { RequestInterventionModal } from '../../components/modals/RequestInterventionModal';
+import { ProvisionDeviceModal } from '../../components/modals/ProvisionDeviceModal';
 import { Device } from '../../types';
 
 import { RadarChart } from '../../components/common/RadarChart';
@@ -413,12 +414,12 @@ export const HomeownerDashboard = () => {
                 </div>
             </section>
             {/* Provision Modal */}
-            <ConfirmDialog
+            <ProvisionDeviceModal
                 isOpen={showProvisionModal}
                 onClose={() => setShowProvisionModal(false)}
-                onConfirm={() => setShowProvisionModal(false)}
-                title="Provision New Edge Node"
-                message="This will initiate an encrypted handshake with a new hardware node found on your local geofence. proceed with AHRN broadcast?"
+                onSuccess={() => {
+                    refetch();
+                }}
             />
 
             {/* Scanning Overlay */}

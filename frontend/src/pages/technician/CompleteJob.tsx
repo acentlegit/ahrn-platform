@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ShieldCheck, Camera, Share2, Info, Activity, LayoutGrid, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ShieldCheck, Camera, Share2, Info, Activity, LayoutGrid, CheckCircle, Mic, Square, Trash2, Upload } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import { JobStatusBadge } from '../../components/common/JobStatusBadge';
+import Webcam from 'react-webcam';
 
 const GLASS_STYLE = "bg-white/70 backdrop-blur-2xl border border-white shadow-premium rounded-[3.5rem]";
 
@@ -16,17 +16,130 @@ export const CompleteJob = () => {
     const [isSealing, setIsSealing] = useState(false);
     const [step, setStep] = useState(1);
 
+    // Evidence State
+    const [postRepairImage, setPostRepairImage] = useState<string | null>(null);
+    const [serialImage, setSerialImage] = useState<string | null>(null);
+    const [isCapturing, setIsCapturing] = useState<'post' | 'serial' | null>(null);
+    const webcamRef = useRef<Webcam>(null);
+
+    // Audio State
+    const [isRecording, setIsRecording] = useState(false);
+    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
     if (!job) return <div>Job not found</div>;
+
+    const capture = useCallback(() => {
+        const imageSrc = webcamRef.current?.getScreenshot();
+        if (imageSrc) {
+            if (isCapturing === 'post') setPostRepairImage(imageSrc);
+            if (isCapturing === 'serial') setSerialImage(imageSrc);
+            setIsCapturing(null);
+        }
+    }, [isCapturing]);
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'post' | 'serial') => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (type === 'post') setPostRepairImage(reader.result as string);
+                if (type === 'serial') setSerialImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            const chunks: BlobPart[] = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                setAudioBlob(blob);
+                setAudioUrl(URL.createObjectURL(blob));
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            alert('Microphone access is required to record voice proof.');
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        }
+    };
+
+    const validateStep1 = () => {
+        if (!postRepairImage) {
+            alert('Please provide a Post-Repair photo.');
+            return false;
+        }
+        if (!serialImage) {
+            alert('Please provide a Serial Number photo.');
+            return false;
+        }
+        if (!audioBlob) {
+            alert('Please record a voice note as proof.');
+            return false;
+        }
+        return true;
+    };
+
+    const [location, setLocation] = useState<{ lat: number; long: number; accuracy: number } | null>(null);
+
+    // ... existing capture/recording code ...
 
     const handleSeal = async () => {
         setIsSealing(true);
-        await sealEvidence(job.id, {
-            technicianId: 'TECH-001',
-            artifacts: ['post_repair_vibration.log', 'visual_confirmation.png'],
-            timestamp: new Date().toISOString()
-        });
-        setIsSealing(false);
-        navigate('/technician');
+
+        // 1. Capture Geolocation
+        try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                });
+            });
+
+            const locData = {
+                lat: position.coords.latitude,
+                long: position.coords.longitude,
+                accuracy: position.coords.accuracy
+            };
+            setLocation(locData);
+
+            // 2. Submit Evidence
+            await sealEvidence(job.id, {
+                technicianId: 'TECH-001',
+                artifacts: ['post_repair_vibration.log', 'visual_confirmation.png', 'voice_proof.webm'],
+                location: locData,
+                timestamp: new Date().toISOString()
+            });
+
+            setIsSealing(false);
+            navigate('/technician');
+
+        } catch (error) {
+            console.error("Geolocation error:", error);
+            alert("Location access is mandatory for proof of presence. Please enable location services.");
+            setIsSealing(false);
+        }
     };
 
     return (
@@ -48,7 +161,7 @@ export const CompleteJob = () => {
                 {/* Stepper Sidebar */}
                 <div className="lg:col-span-1 space-y-4">
                     {[
-                        { num: 1, label: 'Visual Evidence' },
+                        { num: 1, label: 'Visual & Audio Evidence' },
                         { num: 2, label: 'Component Log' },
                         { num: 3, label: 'Telemetry Stabilization' },
                         { num: 4, label: 'Final Sealing' }
@@ -72,23 +185,128 @@ export const CompleteJob = () => {
                     <div className={`${GLASS_STYLE} p-10 rounded-[2.5rem]`}>
                         {step === 1 && (
                             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                <h3 className="text-2xl font-bold text-slate-900">Visual Documentation</h3>
-                                <p className="text-slate-500 text-sm">Upload pre- and post-intervention assets to the decentralized registry.</p>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    <div className="aspect-square bg-slate-50 border border-dashed border-slate-300 rounded-3xl flex flex-col items-center justify-center gap-3 hover:border-slate-400 transition-all cursor-pointer group">
-                                        <Camera className="text-slate-400 group-hover:text-slate-900 transition-colors" size={32} />
-                                        <span className="text-[10px] font-bold text-slate-500">Post-Repair</span>
+                                <h3 className="text-2xl font-bold text-slate-900">Evidence Collection</h3>
+                                <p className="text-slate-500 text-sm">Mandatory visual and audio proof required for registry commits.</p>
+
+                                {/* Camera Modal */}
+                                {isCapturing && (
+                                    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+                                        <Webcam
+                                            audio={false}
+                                            ref={webcamRef}
+                                            screenshotFormat="image/jpeg"
+                                            className="rounded-3xl w-full max-w-lg mb-6 border-4 border-white/20"
+                                        />
+                                        <div className="flex gap-4">
+                                            <button onClick={capture} className="px-8 py-3 bg-white text-black font-bold rounded-xl">Capture Photo</button>
+                                            <button onClick={() => setIsCapturing(null)} className="px-8 py-3 bg-red-500 text-white font-bold rounded-xl">Cancel</button>
+                                        </div>
                                     </div>
-                                    <div className="aspect-square bg-slate-50 border border-dashed border-slate-300 rounded-3xl flex flex-col items-center justify-center gap-3 hover:border-slate-400 transition-all cursor-pointer group">
-                                        <LayoutGrid className="text-slate-400 group-hover:text-slate-900 transition-colors" size={32} />
-                                        <span className="text-[10px] font-bold text-slate-500">Serial Capture</span>
+                                )}
+
+                                {/* Image Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Post Repair Photo */}
+                                    <div className="space-y-3">
+                                        <span className="text-xs font-bold text-slate-900 ml-1">Post-Repair Photo *</span>
+                                        {postRepairImage ? (
+                                            <div className="relative aspect-video rounded-3xl overflow-hidden group shadow-md">
+                                                <img src={postRepairImage} alt="Post Repair" className="w-full h-full object-cover" />
+                                                <button
+                                                    onClick={() => setPostRepairImage(null)}
+                                                    className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-3xl flex flex-col items-center justify-center gap-4 hover:border-[#C5A059] transition-all group">
+                                                <button onClick={() => setIsCapturing('post')} className="flex flex-col items-center gap-2 text-slate-400 group-hover:text-[#C5A059] transition-colors">
+                                                    <Camera size={24} />
+                                                    <span className="text-[10px] font-bold">Take Photo</span>
+                                                </button>
+                                                <div className="flex items-center gap-2 text-xs text-slate-300">
+                                                    <span>or</span>
+                                                    <label className="cursor-pointer hover:text-[#C5A059] underline">
+                                                        upload
+                                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'post')} />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Serial Number Photo */}
+                                    <div className="space-y-3">
+                                        <span className="text-xs font-bold text-slate-900 ml-1">Serial Number Capture *</span>
+                                        {serialImage ? (
+                                            <div className="relative aspect-video rounded-3xl overflow-hidden group shadow-md">
+                                                <img src={serialImage} alt="Serial Number" className="w-full h-full object-cover" />
+                                                <button
+                                                    onClick={() => setSerialImage(null)}
+                                                    className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-3xl flex flex-col items-center justify-center gap-4 hover:border-[#C5A059] transition-all group">
+                                                <button onClick={() => setIsCapturing('serial')} className="flex flex-col items-center gap-2 text-slate-400 group-hover:text-[#C5A059] transition-colors">
+                                                    <LayoutGrid size={24} />
+                                                    <span className="text-[10px] font-bold">Take Photo</span>
+                                                </button>
+                                                <div className="flex items-center gap-2 text-xs text-slate-300">
+                                                    <span>or</span>
+                                                    <label className="cursor-pointer hover:text-[#C5A059] underline">
+                                                        upload
+                                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'serial')} />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
+
+                                {/* Voice Recorder */}
+                                <div className="p-6 bg-slate-50 rounded-3xl border border-black/5">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900">Voice Attestation *</h4>
+                                            <p className="text-xs text-slate-500 mt-1">Record a brief summary of the repair for the audit log.</p>
+                                        </div>
+                                        {audioUrl && <CheckCircle className="text-emerald-500" size={20} />}
+                                    </div>
+
+                                    <div className="flex items-center gap-4">
+                                        {!isRecording ? (
+                                            <button
+                                                onClick={startRecording}
+                                                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all ${audioUrl ? 'bg-slate-200 text-slate-600' : 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20'}`}
+                                            >
+                                                <Mic size={16} /> {audioUrl ? 'Re-record' : 'Start Recording'}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={stopRecording}
+                                                className="flex items-center gap-2 px-6 py-3 bg-red-100 text-red-600 rounded-xl text-xs font-bold animate-pulse border border-red-200"
+                                            >
+                                                <Square size={16} fill="currentColor" /> Stop Recording ({isRecording ? 'Recording...' : ''})
+                                            </button>
+                                        )}
+
+                                        {audioUrl && (
+                                            <audio controls src={audioUrl} className="h-10 w-full max-w-xs md:max-w-md rounded-lg" />
+                                        )}
+                                    </div>
+                                </div>
+
                                 <button
-                                    onClick={() => setStep(2)}
-                                    className="px-10 py-4 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg"
+                                    onClick={() => {
+                                        if (validateStep1()) setStep(2);
+                                    }}
+                                    className="w-full py-5 bg-slate-900 text-white text-sm font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-premium mt-4"
                                 >
-                                    Proceed to Component Log
+                                    Verify Evidence & Proceed
                                 </button>
                             </section>
                         )}

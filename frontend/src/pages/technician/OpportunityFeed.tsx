@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Radar, Zap, Shield, Search, Filter, ArrowRight, TrendingUp } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { JobStatusBadge } from '../../components/common/JobStatusBadge';
 import { NotificationCenter } from '../../components/common/NotificationCenter';
@@ -10,12 +11,22 @@ import { SettingsCenter } from '../../components/common/SettingsCenter';
 const GLASS_STYLE = "bg-white/70 backdrop-blur-2xl border border-white shadow-premium rounded-[3.5rem]";
 
 export const OpportunityFeed = () => {
-    const { jobs } = useData();
+    const { jobs, acceptMarketJob, refetch } = useData();
+    const { user } = useAuth();
     const navigate = useNavigate();
 
     // Opportunities are jobs in PREDICTED or BIDDING status that haven't been assigned yet
     // For demo purposes, we show BIDDING jobs as active opportunities
     const opportunities = jobs.filter(j => j.status === 'BIDDING');
+
+    const handleAccept = async (e: React.MouseEvent, jobId: string) => {
+        e.stopPropagation();
+        if (user?.name) {
+            await acceptMarketJob(jobId, user.name);
+            // Refresh to remove from list
+            await refetch();
+        }
+    };
 
     return (
         <div className="animate-fade-in space-y-10 pb-20">
@@ -121,9 +132,17 @@ export const OpportunityFeed = () => {
                                                     <TrendingUp size={12} /> High Yield Bid
                                                 </div>
                                             </div>
-                                            <button className="flex items-center gap-2 px-6 py-3 bg-[#C5A059] text-white text-[10px] font-bold rounded-xl shadow-lg shadow-[#C5A059]/20 group-hover:bg-[#b08d4b] transition-all">
-                                                Submit Bid <ArrowRight size={14} />
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={(e) => handleAccept(e, job.id)}
+                                                    className="px-6 py-3 bg-emerald-500 text-white text-[10px] font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all"
+                                                >
+                                                    Accept Now
+                                                </button>
+                                                <button className="flex items-center gap-2 px-6 py-3 bg-[#C5A059] text-white text-[10px] font-bold rounded-xl shadow-lg shadow-[#C5A059]/20 group-hover:bg-[#b08d4b] transition-all">
+                                                    Submit Bid <ArrowRight size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 

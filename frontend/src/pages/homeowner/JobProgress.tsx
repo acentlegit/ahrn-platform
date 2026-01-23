@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Info, MapPin, Wrench, Clock, ShieldCheck, CheckCircle2, Zap, Shield, FileCheck, Share2, Download, Activity, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronLeft, Info, MapPin, Wrench, Clock, ShieldCheck, CheckCircle2, Zap, Shield, FileCheck, Share2, Download, Activity, TrendingUp, TrendingDown, ChevronRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { JobStatusBadge } from '../../components/common/JobStatusBadge';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
+import { AssignTechnicianModal } from '../../components/common/AssignTechnicianModal';
+
 const GLASS_STYLE = "bg-white/70 backdrop-blur-2xl border border-white shadow-premium rounded-[3.5rem]";
 
 export const JobProgress = () => {
-    const { jobs, sealEvidence } = useData();
+    const { jobs, sealEvidence, refetch } = useData();
     const navigate = useNavigate();
     const { jobId } = useParams();
     const job = jobs.find(j => j.id === jobId);
 
     const [isSealing, setIsSealing] = useState(false);
     const [showSealConfirm, setShowSealConfirm] = useState(false);
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [paymentReleased, setPaymentReleased] = useState(false);
 
     if (!job) return (
         <div className="h-[60vh] flex flex-col items-center justify-center text-center">
@@ -84,6 +88,15 @@ export const JobProgress = () => {
                 confirmText={isSealing ? "Sealing..." : "Seal Proof-of-Fix"}
             />
 
+            <AssignTechnicianModal
+                isOpen={showAssignModal}
+                onClose={() => setShowAssignModal(false)}
+                jobId={job.id}
+                onAssign={() => {
+                    refetch();
+                }}
+            />
+
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-4">
                 <div className="flex items-center gap-6">
                     <button
@@ -100,6 +113,14 @@ export const JobProgress = () => {
                         <p className="text-slate-400 text-sm mt-1 font-medium tracking-tight">Monitoring real-time node restoration for {job.deviceName}.</p>
                     </div>
                 </div>
+                {job.status === 'BIDDING' && (
+                    <button
+                        onClick={() => setShowAssignModal(true)}
+                        className="p-4 px-6 bg-slate-900 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2"
+                    >
+                        Find Technician <ChevronRight size={16} />
+                    </button>
+                )}
                 <div className="flex gap-3">
                     <button onClick={handleShare} className="p-3 bg-white border border-black/5 rounded-2xl text-slate-400 hover:text-slate-900 transition-colors shadow-sm"><Share2 size={20} /></button>
                     <button onClick={handleDownload} className="p-3 bg-white border border-black/5 rounded-2xl text-slate-400 hover:text-slate-900 transition-colors shadow-sm"><Download size={20} /></button>
@@ -164,21 +185,35 @@ export const JobProgress = () => {
                                     </div>
                                     <div>
                                         <h4 className="text-xl font-bold text-slate-900 mb-1">Intervention Complete</h4>
-                                        <p className="text-slate-400 text-xs font-medium">Telemetry verified. System stabilization within parameters.</p>
+                                        <p className="text-slate-400 text-xs font-medium">Technician has sealed the evidence. Please release funds.</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setShowSealConfirm(true)}
-                                    className="px-10 py-5 bg-slate-900 text-white text-[10px] font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-premium shrink-0"
-                                >
-                                    Seal Final Evidence Package
-                                </button>
+
+                                {!paymentReleased ? (
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm("Release payment to the technician? This action is final.")) {
+                                                setPaymentReleased(true);
+                                                // Here we would call the actual payment API
+                                                alert("Funds released to technician wallet.");
+                                            }
+                                        }}
+                                        className="px-10 py-5 bg-slate-900 text-white text-[10px] font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-premium shrink-0"
+                                    >
+                                        Release Payment (${job.payout.toFixed(2)})
+                                    </button>
+                                ) : (
+                                    <div className="px-10 py-5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-2xl border border-emerald-200 shadow-inner flex items-center gap-2">
+                                        <CheckCircle2 size={16} /> Payment Released
+                                    </div>
+                                )}
                             </motion.div>
                         )}
                     </div>
 
                     {/* Live Telemetry Simulation View */}
                     <div className={`${GLASS_STYLE} p-10 bg-slate-50/50`}>
+                        {/* ... telemetry content ... */}
                         <div className="flex justify-between items-center mb-10">
                             <div className="flex items-center gap-3">
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />

@@ -332,3 +332,132 @@ export const login = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, message: 'Error during login' });
     }
 };
+
+export const getUsers = async (req: Request, res: Response) => {
+    try {
+        const users = await User.find({}, '-password');
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error fetching users' });
+    }
+};
+
+export const updateUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        if (updates.password) {
+            const salt = await bcrypt.genSalt(10);
+            updates.password = await bcrypt.hash(updates.password, salt);
+        }
+
+        const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        res.json({ success: true, user });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error updating user' });
+    }
+};
+
+export const deleteUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findByIdAndDelete(id);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error deleting user' });
+    }
+};
+
+export const createDevice = async (req: Request, res: Response) => {
+    try {
+        const { name, type, zone, manufacturer, modelNumber, serialNumber, ownerEmail } = req.body;
+
+        let ownerId = null;
+        if (ownerEmail) {
+            const user = await User.findOne({ email: ownerEmail });
+            ownerId = user?._id;
+        }
+
+        const id = 'DEV-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+        const device = new Device({
+            id,
+            name,
+            type,
+            zone,
+            manufacturer,
+            modelNumber,
+            serialNumber,
+            owner: ownerId,
+            health: 100,
+            risk: 0,
+            lastServiced: new Date().toISOString().split('T')[0],
+            forecast: 'Optimized',
+            telemetry: {
+                temp: 72,
+                vibration: 'Normal',
+                dutyCycle: 0
+            }
+        });
+
+        await device.save();
+        res.status(201).json({ success: true, device });
+        res.status(201).json({ success: true, device });
+    } catch (error) {
+        console.error('Create device error:', error);
+        res.status(500).json({ success: false, message: 'Error creating device' });
+    }
+};
+
+export const getRecommendedTechnicians = async (req: Request, res: Response) => {
+    try {
+        // In a real app, filtering would be based on skills matching job requirements
+        const technicians = await User.find({ role: 'TECHNICIAN' }, '-password');
+        res.json(technicians);
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error fetching technicians' });
+    }
+};
+
+export const assignJob = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { technicianId } = req.body;
+
+        const job = await Job.findOne({ id });
+        if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+
+        const technician = await User.findById(technicianId);
+        if (!technician) return res.status(404).json({ success: false, message: 'Technician not found' });
+
+        if (job.status !== 'BIDDING' && job.status !== 'PREDICTED') {
+            return res.status(400).json({ success: false, message: 'Job cannot be assigned in current status' });
+        }
+
+        // Create a synthetic bid for the assignment
+        const syntheticBid = {
+            id: 'BID-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            jobId: job.id,
+            technicianName: technician.name,
+            technicianRating: technician.technicianRating || 5.0,
+            price: job.payout, // Default to job payout
+            guaranteeTarget: 12,
+            pofScore: 100,
+            eta: 'Assigned'
+        };
+
+        job.status = 'ASSIGNED';
+        job.bids = [syntheticBid as any]; // Force assignment
+        await job.save();
+
+        res.json({ success: true, job });
+    } catch (error) {
+        console.error('Assign job error:', error);
+        res.status(500).json({ success: false, message: 'Error assigning job' });
+    }
+};

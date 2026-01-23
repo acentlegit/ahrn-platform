@@ -11,6 +11,7 @@ export interface IUser extends Document {
     address?: string; // For Homeowner
     skills?: string[]; // For Technician
     certificationId?: string; // For Technician
+    technicianRating?: number; // For Technician
 }
 
 const UserSchema: Schema = new Schema({
@@ -20,7 +21,8 @@ const UserSchema: Schema = new Schema({
     name: { type: String, required: true },
     address: { type: String },
     skills: { type: [String] },
-    certificationId: { type: String }
+    certificationId: { type: String },
+    technicianRating: { type: Number, default: 5.0 }
 }, { timestamps: true });
 
 export default mongoose.model<IUser>('User', UserSchema);

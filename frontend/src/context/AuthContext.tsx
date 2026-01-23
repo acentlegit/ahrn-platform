@@ -17,17 +17,22 @@ interface AuthContextType {
     login: (user: User, token?: string) => void;
     logout: () => void;
     isAuthenticated: boolean;
+    loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<User | null>(() => {
+        const storedUser = localStorage.getItem('ahrn_user');
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
     const [token, setToken] = useState<string | null>(localStorage.getItem('ahrn_token'));
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('ahrn_user');
-        if (storedUser) setUser(JSON.parse(storedUser));
+        // Just to signal that initial load is complete
+        setLoading(false);
     }, []);
 
     const login = (newUser: User, newToken?: string) => {
@@ -57,9 +62,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             token,
             login,
             logout,
-            isAuthenticated: !!user
+            isAuthenticated: !!user,
+            loading
         }}>
-            {children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 };
