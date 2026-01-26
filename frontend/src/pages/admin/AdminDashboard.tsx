@@ -29,6 +29,8 @@ import { AuditModal } from '../../components/common/AuditModal';
 import { Job, User as UserType } from '../../types';
 import { ahrnApi } from '../../api';
 import { Users, Shield, Trash2, Mail as MailIcon } from 'lucide-react';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { RejectionDialog } from '../../components/common/RejectionDialog';
 
 const GLASS_STYLE = "bg-white/70 backdrop-blur-2xl border border-white shadow-premium rounded-[3.5rem]";
 
@@ -38,14 +40,48 @@ export const AdminDashboard = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'audit' | 'users'>('audit');
+    const [activeTab, setActiveTab] = useState<'audit' | 'users' | 'predicted' | 'b2b_requests'>('audit');
     const [users, setUsers] = useState<UserType[]>([]);
+    const [pendingUsers, setPendingUsers] = useState<UserType[]>([]);
+    const [approvalDialog, setApprovalDialog] = useState<{ id: string, name: string } | null>(null);
+    const [rejectionDialog, setRejectionDialog] = useState<{ id: string, name: string } | null>(null);
 
     React.useEffect(() => {
         if (activeTab === 'users') {
             ahrnApi.getUsers().then(setUsers);
+        } else if (activeTab === 'b2b_requests') {
+            ahrnApi.getPendingUsers().then(res => {
+                if (res.success) setPendingUsers(res.users);
+            });
         }
     }, [activeTab]);
+
+    const handleApproveUser = (id: string, name: string) => {
+        setApprovalDialog({ id, name });
+    };
+
+    const performApproveUser = async (id: string) => {
+        const res = await ahrnApi.approveUser(id);
+        if (res.success) {
+            setPendingUsers(pendingUsers.filter(u => u._id !== id));
+            // alert('User approved successfully'); // Dialog handles visual feedback mostly, maybe toast later?
+        } else {
+            alert('Failed to approve user: ' + res.message);
+        }
+    };
+
+    const handleRejectUser = (id: string, name: string) => {
+        setRejectionDialog({ id, name });
+    };
+
+    const performRejectUser = async (id: string, reason: string) => {
+        const res = await ahrnApi.rejectUser(id, reason);
+        if (res.success) {
+            setPendingUsers(pendingUsers.filter(u => u._id !== id));
+        } else {
+            alert('Failed to reject user: ' + res.message);
+        }
+    };
 
     const handleDeleteUser = async (id: string) => {
         if (window.confirm('Are you sure you want to delete this user?')) {
@@ -242,6 +278,18 @@ export const AdminDashboard = () => {
                     >
                         User Management
                     </button>
+                    <button
+                        onClick={() => setActiveTab('predicted')}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-bold transition-all ${activeTab === 'predicted' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}
+                    >
+                        Predicted Anomalies
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('b2b_requests')}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-bold transition-all ${activeTab === 'b2b_requests' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}
+                    >
+                        B2B Requests
+                    </button>
                 </div>
 
                 {activeTab === 'audit' && (
@@ -262,7 +310,7 @@ export const AdminDashboard = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#C5A059] transition-colors" size={16} />
                     <input
                         type="text"
-                        placeholder={activeTab === 'audit' ? "Audit by hash, node, or Identifier..." : "Search users by name or email..."}
+                        placeholder={activeTab === 'audit' ? "Audit by hash, node, or Identifier..." : "Search..."}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="bg-white border border-black/5 rounded-2xl pl-12 pr-6 py-4 text-xs w-96 focus:border-[#C5A059] outline-none transition-all shadow-sm text-slate-900 placeholder:text-slate-300"
@@ -270,15 +318,15 @@ export const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* Governance Ledger / User Management */}
+            {/* Governance Ledger / User Management / Predicted */}
             <section className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-2xl bg-[#C5A059]/10 flex items-center justify-center text-[#C5A059] border border-[#C5A059]/20">
-                            {activeTab === 'audit' ? <Database size={20} /> : <Users size={20} />}
+                            {activeTab === 'audit' ? <Database size={20} /> : activeTab === 'users' ? <Users size={20} /> : activeTab === 'b2b_requests' ? <UserCircle size={20} /> : <Activity size={20} />}
                         </div>
                         <h3 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">
-                            {activeTab === 'audit' ? 'Forensic Evidence Ledger' : 'Identity Governance'}
+                            {activeTab === 'audit' ? 'Forensic Evidence Ledger' : activeTab === 'users' ? 'Identity Governance' : activeTab === 'b2b_requests' ? 'B2B Registration Requests' : 'AI Anomaly Forecast'}
                         </h3>
                     </div>
                 </div>
@@ -371,7 +419,7 @@ export const AdminDashboard = () => {
                                 ))}
                             </tbody>
                         </table>
-                    ) : (
+                    ) : activeTab === 'users' ? (
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-slate-50/80 border-b border-black/5">
                                 <tr>
@@ -428,6 +476,121 @@ export const AdminDashboard = () => {
                                 ))}
                             </tbody>
                         </table>
+                    ) : activeTab === 'b2b_requests' ? (
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50/80 border-b border-black/5">
+                                <tr>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Company / Applicant</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Details</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Status</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400 text-right">Approval Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/5">
+                                {pendingUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-10 py-12 text-center text-slate-400 text-sm">No pending B2B requests.</td>
+                                    </tr>
+                                ) : (
+                                    pendingUsers.map((u) => (
+                                        <tr key={u._id} className="hover:bg-slate-50 transition-all group/row">
+                                            <td className="px-10 py-8">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-inner border border-indigo-100">
+                                                        {u.companyInfo?.name?.charAt(0) || u.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-bold text-slate-900 block">{u.companyInfo?.name || 'N/A'}</span>
+                                                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                            {u.name}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-10 py-8">
+                                                <div className="space-y-1">
+                                                    <div className="text-[10px] text-slate-600"><span className="font-bold text-slate-400">Email:</span> {u.email}</div>
+                                                    <div className="text-[10px] text-slate-600"><span className="font-bold text-slate-400">Tax ID:</span> {u.companyInfo?.taxId || 'N/A'}</div>
+                                                    <div className="text-[10px] text-slate-600"><span className="font-bold text-slate-400">Reg No:</span> {u.companyInfo?.registrationNumber || 'N/A'}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-10 py-8">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-600 rounded-full border border-amber-100 text-[9px] font-bold">
+                                                    <Activity size={10} /> Pending Verification
+                                                </div>
+                                            </td>
+                                            <td className="px-10 py-8 text-right space-x-2">
+                                                <button
+                                                    onClick={() => handleApproveUser(u._id!, u.name)}
+                                                    className="inline-flex items-center gap-2 text-emerald-600 hover:text-white transition-all px-4 py-2 hover:bg-emerald-500 rounded-xl border border-emerald-200 group/btn font-bold text-[9px] bg-white shadow-sm"
+                                                >
+                                                    Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRejectUser(u._id!, u.name)}
+                                                    className="inline-flex items-center gap-2 text-rose-500 hover:text-white transition-all px-4 py-2 hover:bg-rose-500 rounded-xl border border-rose-200 group/btn font-bold text-[9px] bg-white shadow-sm"
+                                                >
+                                                    Decline
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <table className="w-full text-left border-collapse">
+                            {/* PREDICTED JOBS */}
+                            <thead className="bg-slate-50/80 border-b border-black/5">
+                                <tr>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Anomaly</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Severity</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400">Forecasted Yield</th>
+                                    <th className="px-10 py-6 text-[10px] font-bold text-slate-400 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/5">
+                                {jobs.filter(j => j.status === 'PREDICTED').length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-10 py-12 text-center text-slate-400 text-sm">No new predicted anomalies.</td>
+                                    </tr>
+                                ) : (
+                                    jobs.filter(j => j.status === 'PREDICTED').map((job) => (
+                                        <tr key={job.id} className="hover:bg-slate-50 transition-all">
+                                            <td className="px-10 py-8">
+                                                <span className="text-sm font-bold text-slate-900 block">{job.deviceName} Restoration</span>
+                                                <span className="text-[10px] text-slate-400">ID: {job.id}</span>
+                                            </td>
+                                            <td className="px-10 py-8">
+                                                <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[9px] font-bold ${job.severity === 'CRITICAL' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                                    <Activity size={10} /> {job.severity}
+                                                </span>
+                                            </td>
+                                            <td className="px-10 py-8">
+                                                <span className="text-sm font-bold text-slate-900 ml-2">${job.payout}</span>
+                                            </td>
+                                            <td className="px-10 py-8 text-right">
+                                                <button
+                                                    onClick={async () => {
+                                                        const res = await ahrnApi.releaseJob(job.id);
+                                                        if (res.success) {
+                                                            alert(`Job ${job.id} released to market`);
+                                                            // Could refresh jobs here, but currently relying on context updates or manual refresh for simplicity
+                                                            window.location.reload();
+                                                        } else {
+                                                            alert(`Error: ${res.message}`);
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-[#C5A059] text-white rounded-xl text-[9px] font-bold shadow-lg shadow-[#C5A059]/20 hover:bg-[#b08d4b] transition-all"
+                                                >
+                                                    Release to Market
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     )}
                 </div>
             </section>
@@ -437,6 +600,29 @@ export const AdminDashboard = () => {
                 onClose={() => setIsAuditModalOpen(false)}
                 job={selectedJob}
             />
+
+            {/* Dialogs */}
+            {approvalDialog && (
+                <ConfirmDialog
+                    isOpen={!!approvalDialog}
+                    onClose={() => setApprovalDialog(null)}
+                    title="Approve Registration"
+                    message={`Are you sure you want to approve B2B registration for ${approvalDialog.name}?`}
+                    onConfirm={() => performApproveUser(approvalDialog.id)}
+                    confirmText="Approve"
+                    confirmColor="bg-emerald-500"
+                />
+            )}
+
+            {rejectionDialog && (
+                <RejectionDialog
+                    isOpen={!!rejectionDialog}
+                    onClose={() => setRejectionDialog(null)}
+                    title="Decline Registration"
+                    message={`Please provide a reason for declining ${rejectionDialog.name}.`}
+                    onConfirm={(reason) => performRejectUser(rejectionDialog.id, reason)}
+                />
+            )}
         </div>
     );
 };

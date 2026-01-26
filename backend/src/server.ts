@@ -1,12 +1,13 @@
+// Load environment variables FIRST before any other imports
+import 'dotenv/config';
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import connectDB from './config/db';
 import apiRoutes from './routes/apiRoutes';
 import Device from './models/Device';
 import Job from './models/Job';
-
-dotenv.config();
+import mongoose from 'mongoose';
 
 const app = express();
 
@@ -41,8 +42,8 @@ const seedData = async () => {
                 priority: 'MEDIUM',
                 payout: 240,
                 bids: [
-                    { id: 'b-1', jobId: 'job-1', technicianName: 'Aria Maintenance', technicianRating: 4.9, price: 210, guaranteeTarget: 12, pofScore: 94, eta: '2h' },
-                    { id: 'b-2', jobId: 'job-1', technicianName: 'Swift Repairs', technicianRating: 4.7, price: 185, guaranteeTarget: 6, pofScore: 81, eta: '1h' },
+                    { id: 'b-1', jobId: 'job-1', technicianId: new mongoose.Types.ObjectId(), technicianName: 'Aria Maintenance', technicianRating: 4.9, price: 210, guaranteeTarget: 12, pofScore: 94, eta: '2h' },
+                    { id: 'b-2', jobId: 'job-1', technicianId: new mongoose.Types.ObjectId(), technicianName: 'Swift Repairs', technicianRating: 4.7, price: 185, guaranteeTarget: 6, pofScore: 81, eta: '1h' },
                 ]
             },
             { id: 'job-2', deviceId: 'dev-4', deviceName: 'Kitchen Refrigerator', status: 'PREDICTED', severity: 'CRITICAL', priority: 'HIGH', payout: 120, bids: [] },
@@ -59,7 +60,7 @@ import { seedAdminUser } from './config/userSeeder';
 connectDB().then(() => {
     seedData();
     seedAdminUser();
-    startSimulation();
+    // startSimulation(); // Disabled to prevent interfering with manual lifecycle testing
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });

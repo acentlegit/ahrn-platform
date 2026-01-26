@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Wrench, LayoutDashboard, ChevronLeft, ArrowRight, User, Mail, Lock, MapPin, Award, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Wrench, LayoutDashboard, ChevronLeft, ArrowRight, User, Mail, Lock, MapPin, Award, CheckCircle2, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ahrnApi } from '../../api';
 
 const GLASS_STYLE = "bg-white/70 backdrop-blur-2xl border border-white shadow-premium rounded-[3.5rem]";
 
-type Role = 'HOMEOWNER' | 'TECHNICIAN' | 'ADMIN';
+type Role = 'HOMEOWNER' | 'TECHNICIAN' | 'ADMIN' | 'ORGANIZATION';
 
 export const Signup = () => {
     const navigate = useNavigate();
@@ -18,7 +18,10 @@ export const Signup = () => {
         password: '',
         address: '',
         skills: '',
-        certificationId: ''
+        certificationId: '',
+        companyName: '',
+        registrationNumber: '',
+        taxId: ''
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -38,17 +41,29 @@ export const Signup = () => {
         setError('');
 
         try {
-            const payload = {
+            let payload: any = {
                 ...formData,
-                role,
-                skills: role === 'TECHNICIAN' ? formData.skills.split(',').map(s => s.trim()) : undefined
+                role: role === 'ORGANIZATION' ? 'ORGANIZATION_ADMIN' : role,
+                skills: (role === 'TECHNICIAN' || role === 'ORGANIZATION') && formData.skills ? formData.skills.split(',').map(s => s.trim()) : undefined
             };
+
+            if (role === 'ORGANIZATION') {
+                payload.accountType = 'B2B';
+                payload.companyInfo = {
+                    name: formData.companyName,
+                    registrationNumber: formData.registrationNumber,
+                    taxId: formData.taxId
+                };
+            }
 
             const data = await ahrnApi.register(payload);
 
             if (data.success) {
                 setStep(3);
-                setTimeout(() => navigate('/login'), 3000);
+                // Redirect logic handled in render based on role or response
+                if (role !== 'ORGANIZATION') {
+                    setTimeout(() => navigate('/login'), 3000);
+                }
             } else {
                 setError(data.message || 'Registration failed');
             }
@@ -87,29 +102,37 @@ export const Signup = () => {
                                 <p className="text-slate-400 text-lg">Select your role in the AHRN decentralized network</p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <button onClick={() => handleRoleSelect('HOMEOWNER')} className="group p-8 rounded-3xl bg-white border border-black/5 hover:bg-[#C5A059] hover:border-[#C5A059] transition-all duration-500 shadow-premium hover:shadow-2xl flex flex-col items-center gap-4 text-center">
-                                    <div className="w-16 h-16 rounded-full bg-slate-100 group-hover:bg-white/20 flex items-center justify-center text-[#C5A059] group-hover:text-white transition-colors">
-                                        <ShieldCheck size={32} />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                                <button onClick={() => handleRoleSelect('HOMEOWNER')} className="group p-6 md:p-8 rounded-3xl bg-white border border-black/5 hover:bg-[#C5A059] hover:border-[#C5A059] transition-all duration-500 shadow-premium hover:shadow-2xl flex flex-col items-center gap-4 text-center">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-100 group-hover:bg-white/20 flex items-center justify-center text-[#C5A059] group-hover:text-white transition-colors">
+                                        <ShieldCheck size={28} />
                                     </div>
-                                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-white mb-1 transition-colors">Homeowner</h3>
-                                    <p className="text-slate-400 text-xs group-hover:text-white/80 transition-colors">Manage node reliability</p>
+                                    <h3 className="text-lg md:text-xl font-bold text-slate-900 group-hover:text-white mb-1 transition-colors">Homeowner</h3>
+                                    <p className="text-slate-400 text-[10px] md:text-xs group-hover:text-white/80 transition-colors">Manage node</p>
                                 </button>
 
-                                <button onClick={() => handleRoleSelect('TECHNICIAN')} className="group p-8 rounded-3xl bg-white border border-black/5 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-500 shadow-premium hover:shadow-2xl flex flex-col items-center gap-4 text-center">
-                                    <div className="w-16 h-16 rounded-full bg-slate-100 group-hover:bg-white/20 flex items-center justify-center text-indigo-500 group-hover:text-white transition-colors">
-                                        <Wrench size={32} />
+                                <button onClick={() => handleRoleSelect('TECHNICIAN')} className="group p-6 md:p-8 rounded-3xl bg-white border border-black/5 hover:bg-indigo-500 hover:border-indigo-500 transition-all duration-500 shadow-premium hover:shadow-2xl flex flex-col items-center gap-4 text-center">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-100 group-hover:bg-white/20 flex items-center justify-center text-indigo-500 group-hover:text-white transition-colors">
+                                        <Wrench size={28} />
                                     </div>
-                                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-white mb-1 transition-colors">Technician</h3>
-                                    <p className="text-slate-400 text-xs group-hover:text-white/80 transition-colors">Execute interventions</p>
+                                    <h3 className="text-lg md:text-xl font-bold text-slate-900 group-hover:text-white mb-1 transition-colors">Technician</h3>
+                                    <p className="text-slate-400 text-[10px] md:text-xs group-hover:text-white/80 transition-colors">Interventions</p>
                                 </button>
 
-                                <button onClick={() => handleRoleSelect('ADMIN')} className="group p-8 rounded-3xl bg-white border border-black/5 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-500 shadow-premium hover:shadow-2xl flex flex-col items-center gap-4 text-center">
-                                    <div className="w-16 h-16 rounded-full bg-slate-100 group-hover:bg-white/20 flex items-center justify-center text-emerald-500 group-hover:text-white transition-colors">
-                                        <LayoutDashboard size={32} />
+                                <button onClick={() => handleRoleSelect('ORGANIZATION')} className="group p-6 md:p-8 rounded-3xl bg-white border border-black/5 hover:bg-blue-600 hover:border-blue-600 transition-all duration-500 shadow-premium hover:shadow-2xl flex flex-col items-center gap-4 text-center">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-100 group-hover:bg-white/20 flex items-center justify-center text-blue-600 group-hover:text-white transition-colors">
+                                        <Building2 size={28} />
                                     </div>
-                                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-white mb-1 transition-colors">Governance</h3>
-                                    <p className="text-slate-400 text-xs group-hover:text-white/80 transition-colors">Protocol oversight</p>
+                                    <h3 className="text-lg md:text-xl font-bold text-slate-900 group-hover:text-white mb-1 transition-colors">Organization</h3>
+                                    <p className="text-slate-400 text-[10px] md:text-xs group-hover:text-white/80 transition-colors">B2B Services</p>
+                                </button>
+
+                                <button onClick={() => handleRoleSelect('ADMIN')} className="group p-6 md:p-8 rounded-3xl bg-white border border-black/5 hover:bg-emerald-500 hover:border-emerald-500 transition-all duration-500 shadow-premium hover:shadow-2xl flex flex-col items-center gap-4 text-center">
+                                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-100 group-hover:bg-white/20 flex items-center justify-center text-emerald-500 group-hover:text-white transition-colors">
+                                        <LayoutDashboard size={28} />
+                                    </div>
+                                    <h3 className="text-lg md:text-xl font-bold text-slate-900 group-hover:text-white mb-1 transition-colors">Governance</h3>
+                                    <p className="text-slate-400 text-[10px] md:text-xs group-hover:text-white/80 transition-colors">Protocol</p>
                                 </button>
                             </div>
                             <div className="text-center">
@@ -191,6 +214,32 @@ export const Signup = () => {
                                         </>
                                     )}
 
+                                    {role === 'ORGANIZATION' && (
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Organization Name</label>
+                                                <div className="relative">
+                                                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                                    <input required name="companyName" value={formData.companyName} onChange={handleInputChange} type="text" placeholder="Acme Inc." className="w-full bg-white border border-black/5 rounded-2xl py-4 pl-12 pr-6 text-slate-900 focus:outline-none focus:border-blue-600 transition-all shadow-inner placeholder:text-slate-300 font-medium" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Registration / EIN</label>
+                                                <div className="relative">
+                                                    <Award className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                                    <input required name="registrationNumber" value={formData.registrationNumber} onChange={handleInputChange} type="text" placeholder="XX-XXXXXXX" className="w-full bg-white border border-black/5 rounded-2xl py-4 pl-12 pr-6 text-slate-900 focus:outline-none focus:border-blue-600 transition-all shadow-inner placeholder:text-slate-300 font-medium" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tax ID / VAT</label>
+                                                <div className="relative">
+                                                    <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                                    <input name="taxId" value={formData.taxId} onChange={handleInputChange} type="text" placeholder="Optional" className="w-full bg-white border border-black/5 rounded-2xl py-4 pl-12 pr-6 text-slate-900 focus:outline-none focus:border-blue-600 transition-all shadow-inner placeholder:text-slate-300 font-medium" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {role === 'ADMIN' && (
                                         <div className="p-8 bg-emerald-50 border border-emerald-100 rounded-3xl animate-in fade-in slide-in-from-right-4 shadow-sm">
                                             <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -226,16 +275,28 @@ export const Signup = () => {
                             <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-premium ring-4 ring-emerald-50/50">
                                 <CheckCircle2 size={48} />
                             </div>
-                            <h2 className="text-4xl font-serif font-bold text-slate-900 mb-4">Registration Sealed</h2>
-                            <p className="text-slate-400 text-lg mb-8">Node cluster integration complete. Redirecting to portal...</p>
-                            <div className="w-48 h-1.5 bg-slate-200 rounded-full mx-auto overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: "100%" }}
-                                    transition={{ duration: 3 }}
-                                    className="h-full bg-emerald-500"
-                                />
-                            </div>
+                            {role === 'ORGANIZATION' ? (
+                                <>
+                                    <h2 className="text-4xl font-serif font-bold text-slate-900 mb-4">Application Under Review</h2>
+                                    <p className="text-slate-400 text-lg mb-8 max-w-md mx-auto">Your B2B account request has been submitted. You will receive an email once an admin reviews and approves your organization.</p>
+                                    <button onClick={() => navigate('/login')} className="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+                                        Return to Login
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <h2 className="text-4xl font-serif font-bold text-slate-900 mb-4">Registration Sealed</h2>
+                                    <p className="text-slate-400 text-lg mb-8">Node cluster integration complete. Redirecting to portal...</p>
+                                    <div className="w-48 h-1.5 bg-slate-200 rounded-full mx-auto overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: "100%" }}
+                                            transition={{ duration: 3 }}
+                                            className="h-full bg-emerald-500"
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-type Role = 'HOMEOWNER' | 'TECHNICIAN' | 'ADMIN';
+type Role = 'HOMEOWNER' | 'TECHNICIAN' | 'ADMIN' | 'ORGANIZATION_ADMIN';
 
 interface User {
     name: string;

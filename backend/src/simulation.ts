@@ -1,4 +1,5 @@
 import Job from './models/Job';
+import mongoose from 'mongoose';
 
 export const startSimulation = () => {
     console.log('Starting simulation loop...');
@@ -15,6 +16,7 @@ export const startSimulation = () => {
                     const newBid = {
                         id: `b-${Math.random().toString(36).substr(2, 5)}`,
                         jobId: job.id,
+                        technicianId: new mongoose.Types.ObjectId(), // Fake ID for simulation
                         technicianName: techNames[Math.floor(Math.random() * techNames.length)],
                         technicianRating: parseFloat((4 + Math.random()).toFixed(1)),
                         price: job.payout - Math.floor(Math.random() * 50),
@@ -22,15 +24,15 @@ export const startSimulation = () => {
                         pofScore: Math.floor(Math.random() * 20) + 80,
                         eta: `${Math.floor(Math.random() * 4) + 1}h`
                     };
-                    job.bids.push(newBid);
+                    job.bids.push(newBid as any);
                     changed = true;
                 }
 
                 // 2. Randomly progress PREDICTED jobs to BIDDING
-                if (job.status === 'PREDICTED' && Math.random() > 0.95) {
-                    job.status = 'BIDDING';
-                    changed = true;
-                }
+                // if (job.status === 'PREDICTED' && Math.random() > 0.95) {
+                //     job.status = 'BIDDING';
+                //     changed = true;
+                // }
 
                 // 3. Randomly progress ASSIGNED jobs to IN_PROGRESS
                 if (job.status === 'ASSIGNED' && Math.random() > 0.9) {

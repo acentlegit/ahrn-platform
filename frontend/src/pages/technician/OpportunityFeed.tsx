@@ -1,39 +1,91 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Radar, Zap, Shield, Search, Filter, ArrowRight, TrendingUp } from 'lucide-react';
+import { Radar, Zap, Shield, Search, Filter, ArrowRight, TrendingUp, ArrowLeft } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { JobStatusBadge } from '../../components/common/JobStatusBadge';
-import { NotificationCenter } from '../../components/common/NotificationCenter';
-import { SettingsCenter } from '../../components/common/SettingsCenter';
 
 const GLASS_STYLE = "bg-white/70 backdrop-blur-2xl border border-white shadow-premium rounded-[3.5rem]";
 
+// Helper Components
+const NotificationCenter = () => (
+    <button className="relative p-3 bg-white border border-black/5 rounded-2xl shadow-sm hover:border-[#C5A059] transition-all">
+        <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full" />
+    </button>
+);
+
+const SettingsCenter = () => (
+    <button className="p-3 bg-white border border-black/5 rounded-2xl shadow-sm hover:border-[#C5A059] transition-all">
+        <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+    </button>
+);
+
+const JobStatusBadge = ({ status }: { status: string }) => {
+    const getBadgeStyle = () => {
+        switch (status) {
+            case 'BIDDING':
+                return 'bg-[#C5A059]/10 text-[#C5A059] border-[#C5A059]/20';
+            case 'ASSIGNED':
+                return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+            case 'IN_PROGRESS':
+                return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+            default:
+                return 'bg-slate-100 text-slate-500 border-slate-200';
+        }
+    };
+
+    return (
+        <span className={`px-3 py-1 rounded-xl text-[10px] font-bold border ${getBadgeStyle()}`}>
+            {status.replace('_', ' ')}
+        </span>
+    );
+};
+
 export const OpportunityFeed = () => {
-    const { jobs, acceptMarketJob, refetch } = useData();
+    const { marketJobs } = useData();
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    // Opportunities are jobs in PREDICTED or BIDDING status that haven't been assigned yet
-    // For demo purposes, we show BIDDING jobs as active opportunities
-    const opportunities = jobs.filter(j => j.status === 'BIDDING');
+    const opportunities = React.useMemo(() => {
+        if (!marketJobs) return [];
+        if (!user || user.role !== 'TECHNICIAN' || !user.skills || user.skills.length === 0) return marketJobs;
+
+        // Simple skill matching logic: 
+        // If job.type is in user.skills (case insensitive partial match)
+        return marketJobs.filter(job =>
+            user.skills!.some(skill =>
+                job.type.toLowerCase().includes(skill.toLowerCase()) ||
+                skill.toLowerCase().includes(job.type.toLowerCase())
+            )
+        );
+    }, [marketJobs, user]);
 
     const handleAccept = async (e: React.MouseEvent, jobId: string) => {
         e.stopPropagation();
-        if (user?.name) {
-            await acceptMarketJob(jobId, user.name);
-            // Refresh to remove from list
-            await refetch();
-        }
+        // Handle job acceptance
+        navigate(`/technician/job/${jobId}`);
     };
 
     return (
         <div className="animate-fade-in space-y-10 pb-20">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">Field Radar</h2>
-                    <p className="text-slate-500 text-xs font-medium">Predictive failure opportunities within your service cluster.</p>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-3 bg-white border border-black/5 rounded-2xl shadow-sm hover:border-[#C5A059] transition-all group"
+                    >
+                        <ArrowLeft size={20} className="text-slate-400 group-hover:text-[#C5A059] transition-colors" />
+                    </button>
+                    <div>
+                        <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">Field Radar</h2>
+                        <p className="text-slate-500 text-xs font-medium">Predictive failure opportunities within your service cluster.</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="relative mr-4">

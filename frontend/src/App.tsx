@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { Login } from './pages/shared/Login';
 import { Signup } from './pages/shared/Signup';
+import { SetupPassword } from './pages/shared/SetupPassword';
+import { RequestPasswordReset } from './pages/shared/RequestPasswordReset';
+import { ResetPassword } from './pages/shared/ResetPassword';
 import { AppLayout } from './components/layout/AppLayout';
 import { HomeownerDashboard } from './pages/homeowner/HomeownerDashboard';
 import { SystemForecast } from './pages/homeowner/SystemForecast';
@@ -14,6 +17,7 @@ import { OpportunityFeed } from './pages/technician/OpportunityFeed';
 import { JobDetails as TechJobDetails } from './pages/technician/JobDetails';
 import { CompleteJob } from './pages/technician/CompleteJob';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { OrganizationDashboard } from './pages/shared/OrganizationDashboard';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
@@ -25,6 +29,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
         if (role === 'HOMEOWNER') return <Navigate to="/homeowner" replace />;
         if (role === 'TECHNICIAN') return <Navigate to="/technician" replace />;
         if (role === 'ADMIN') return <Navigate to="/admin" replace />;
+        if (role === 'ORGANIZATION_ADMIN') return <Navigate to="/organization" replace />;
     }
 
     return <>{children}</>;
@@ -35,6 +40,9 @@ const AppRoutes = () => {
         <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/setup-password" element={<SetupPassword />} />
+            <Route path="/forgot-password" element={<RequestPasswordReset />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/homeowner" element={<ProtectedRoute allowedRoles={['HOMEOWNER']}><HomeownerDashboard /></ProtectedRoute>} />
@@ -48,6 +56,7 @@ const AppRoutes = () => {
                 <Route path="/technician/complete/:jobId" element={<ProtectedRoute allowedRoles={['TECHNICIAN']}><CompleteJob /></ProtectedRoute>} />
 
                 <Route path="/admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/organization" element={<ProtectedRoute allowedRoles={['ORGANIZATION_ADMIN']}><OrganizationDashboard /></ProtectedRoute>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />

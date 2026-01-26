@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Device, Job, Priority } from './types';
 
-const API_URL = 'http://44.215.103.59:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 axios.interceptors.request.use(config => {
     const token = localStorage.getItem('ahrn_token');
@@ -72,9 +72,9 @@ export const ahrnApi = {
         }
     },
 
-    sealEvidence: async (jobId: string, data: any) => {
+    sealEvidence: async (jobId: string, payload: any) => {
         try {
-            const response = await axios.post(`${API_URL}/jobs/${jobId}/seal`, { data });
+            const response = await axios.post(`${API_URL}/jobs/${jobId}/seal`, payload);
             return response.data;
         } catch (error) {
             console.error(error);
@@ -232,6 +232,96 @@ export const ahrnApi = {
             console.error(error);
             // Return success for mock purposes if backend is missing
             return { success: true, message: 'Dispute resolution processed (Mock)' };
+        }
+    },
+
+    releaseJob: async (jobId: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/jobs/${jobId}/release`);
+            return response.data;
+        } catch (error: any) {
+            console.error(error);
+            return { success: false, message: error.response?.data?.message || 'Failed to release job' };
+        }
+    },
+
+    getPendingUsers: async (): Promise<{ success: boolean; users: any[] }> => {
+        try {
+            const response = await axios.get(`${API_URL}/admin/pending-users`);
+            return response.data;
+        } catch (error) {
+            console.error(error);
+            return { success: false, users: [] };
+        }
+    },
+
+    approveUser: async (userId: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/admin/users/${userId}/approve`);
+            return response.data;
+        } catch (error: any) {
+            console.error(error);
+            return { success: false, message: error.response?.data?.message || 'Approval failed' };
+        }
+    },
+
+    rejectUser: async (userId: string, reason: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/admin/users/${userId}/reject`, { reason });
+            return response.data;
+        } catch (error: any) {
+            console.error(error);
+            return { success: false, message: error.response?.data?.message || 'Rejection failed' };
+        }
+    },
+
+    inviteTechnician: async (data: { email: string; name: string; skills: string[] }) => {
+        try {
+            const response = await axios.post(`${API_URL}/org/invite`, data);
+            return response.data;
+        } catch (error: any) {
+            console.error(error);
+            return { success: false, message: error.response?.data?.message || 'Invitation failed' };
+        }
+    },
+
+    getOrganizationTechnicians: async (): Promise<{ success: boolean; technicians: any[]; total: number }> => {
+        try {
+            const response = await axios.get(`${API_URL}/org/technicians`);
+            return response.data;
+        } catch (error) {
+            console.error(error);
+            return { success: false, technicians: [], total: 0 };
+        }
+    },
+
+    setupPassword: async (token: string, password: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/setup-password`, { token, password });
+            return response.data;
+        } catch (error: any) {
+            console.error(error);
+            return { success: false, message: error.response?.data?.message || 'Failed to set password' };
+        }
+    },
+
+    requestPasswordReset: async (email: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/request-password-reset`, { email });
+            return response.data;
+        } catch (error: any) {
+            console.error(error);
+            return { success: false, message: error.response?.data?.message || 'Request failed' };
+        }
+    },
+
+    resetPassword: async (token: string, password: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/reset-password`, { token, password });
+            return response.data;
+        } catch (error: any) {
+            console.error(error);
+            return { success: false, message: error.response?.data?.message || 'Reset failed' };
         }
     }
 };
