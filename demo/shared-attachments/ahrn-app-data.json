@@ -1,0 +1,76 @@
+{
+  "home": {
+    "name": "Maple Street Home",
+    "address": "1247 Maple Street, Austin TX",
+    "hri": 87,
+    "hriSummary": "Good — 1 system needs attention",
+    "alertTitle": "HVAC compressor degradation detected",
+    "alertBody": "AI predicts failure within 21 days — view forecast for details"
+  },
+  "systems": [
+    { "name": "HVAC", "status": "At Risk", "risk": "Failure in 21 days", "colorKey": "warning" },
+    { "name": "Water Heater", "status": "Healthy", "risk": "No issues detected", "colorKey": "success" },
+    { "name": "Electrical Panel", "status": "Healthy", "risk": "Last inspected 45 days ago", "colorKey": "success" }
+  ],
+  "roleCoverage": [
+    { "role": "Homeowner", "capability": "Forecasts, bids, repair tracking", "screen": "Forecast" },
+    { "role": "Technician", "capability": "Opportunity feed, bid submission, evidence requirements", "screen": "Technician" },
+    { "role": "Admin", "capability": "Operations, disputes, compliance readiness", "screen": "Admin" },
+    { "role": "Super Admin", "capability": "Tenants, policies, model controls, kill switch", "screen": "SuperAdmin" }
+  ],
+  "riskData": [
+    { "day": 0, "risk": 12 },
+    { "day": 7, "risk": 18 },
+    { "day": 14, "risk": 35 },
+    { "day": 21, "risk": 72 },
+    { "day": 28, "risk": 91 },
+    { "day": 35, "risk": 98 }
+  ],
+  "forecastAi": {
+    "model": "LLaMA Reliability v2.1",
+    "confidence": "94%",
+    "emergencyCost": 2400
+  },
+  "bids": [
+    { "id": "1", "provider": "CoolAir Pro", "outcome": "12 months stability guarantee", "pof": "98%", "eta": "2 days", "price": 120, "recommended": true },
+    { "id": "2", "provider": "Texas HVAC Solutions", "outcome": "6 months stability guarantee", "pof": "91%", "eta": "1 day", "price": 95, "recommended": false },
+    { "id": "3", "provider": "Reliable Comfort Co.", "outcome": "9 months stability guarantee", "pof": "94%", "eta": "3 days", "price": 110, "recommended": false }
+  ],
+  "job": {
+    "id": "AHRN-2847",
+    "title": "HVAC Compressor Repair — CoolAir Pro",
+    "slaRemaining": "4h 22m",
+    "sensorStatus": "Pending verification",
+    "evidence": [
+      { "label": "Technician photo", "value": "Required before closeout" },
+      { "label": "Sensor packet", "value": "Vibration + thermal sample" },
+      { "label": "Chain hash", "value": "SHA-256 pending" },
+      { "label": "Audit event", "value": "JOB_EVIDENCE_SUBMITTED" }
+    ]
+  },
+  "adminDisputes": [
+    { "id": "DSP-1024", "issue": "Homeowner challenged Proof-of-Fix result", "owner": "Ops Review", "sla": "2h 12m" },
+    { "id": "DSP-1025", "issue": "Technician evidence missing thermal sample", "owner": "Compliance", "sla": "5h 40m" },
+    { "id": "DSP-1026", "issue": "Sensor packet timestamp mismatch", "owner": "Audit Desk", "sla": "1d 3h" }
+  ],
+  "adminComplianceChecks": [
+    { "label": "SOC2 access control", "status": "Mapped to RBAC + audit logs" },
+    { "label": "PII redaction", "status": "Enabled for AI prompts and responses" },
+    { "label": "Availability target", "status": "99.9% target tracked by ops dashboard" },
+    { "label": "API latency", "status": "p95 target: under 300ms" }
+  ],
+  "technicianOpportunities": [
+    { "id": "AHRN-2847", "system": "HVAC compressor", "distance": "4.2 mi", "confidence": "94%", "bidRange": "$95 - $140" },
+    { "id": "AHRN-2851", "system": "Water heater anode rod", "distance": "7.8 mi", "confidence": "88%", "bidRange": "$70 - $115" },
+    { "id": "AHRN-2860", "system": "Electrical breaker heat signature", "distance": "12.4 mi", "confidence": "91%", "bidRange": "$130 - $210" }
+  ],
+  "superAdminTenants": [
+    { "name": "Lone Star Homes", "region": "Texas", "users": 12408, "status": "Active" },
+    { "name": "Pacific Property Group", "region": "California", "users": 8712, "status": "Active" },
+    { "name": "Northeast Managed Homes", "region": "New York", "users": 6541, "status": "Review" }
+  ],
+  "footerDisclaimer": "AHRN is a predictive reliability platform. It does not provide insurance or indemnification.",
+  "source": "https://github.com/udayacentle/HOME-AUTOMATION",
+  "platformRepo": "https://github.com/acentlegit/ahrn-platform",
+  "syncedAt": "2026-07-07"
+}
